@@ -90,6 +90,18 @@ st.markdown(
             border-color: #7a0018;
             color: white;
         }
+        .stDownloadButton > button {
+            background: #e60028 !important;
+            color: #ffffff !important;
+            border: 1px solid #b00020 !important;
+            border-radius: 10px !important;
+            font-weight: 600 !important;
+        }
+        .stDownloadButton > button:hover {
+            background: #b00020 !important;
+            color: #ffffff !important;
+            border-color: #7a0018 !important;
+        }
         .stTabs [data-baseweb="tab"] {
             color: #7a0018;
             font-weight: 700;
@@ -138,6 +150,28 @@ st.markdown(
             background: #ffd6df !important;
             color: #1f1f1f !important;
         }
+        /* Fix date picker popup readability */
+        [data-baseweb="calendar"] {
+            background: #fffafb !important;
+            color: #1f1f1f !important;
+        }
+        [data-baseweb="calendar"] * {
+            color: #1f1f1f !important;
+        }
+        [data-baseweb="calendar"] [aria-selected="true"] {
+            background: #ff4d68 !important;
+            color: #ffffff !important;
+            border-radius: 999px !important;
+        }
+        [data-baseweb="calendar"] [role="button"]:hover {
+            background: #ffe5ea !important;
+            color: #7a0018 !important;
+            border-radius: 8px !important;
+        }
+        [data-baseweb="calendar"] svg {
+            fill: #7a0018 !important;
+            color: #7a0018 !important;
+        }
         [data-testid="stMarkdownContainer"] code {
             color: #7a0018;
         }
@@ -152,6 +186,52 @@ if "action_log" not in st.session_state:
     st.session_state.action_log = []
 if "obs_log" not in st.session_state:
     st.session_state.obs_log = []
+if "ai_history" not in st.session_state:
+    st.session_state.ai_history = []
+
+
+def ai_plant_coach(question: str) -> str:
+    q = question.lower().strip()
+    if not q:
+        return "Stel een vraag, bijvoorbeeld: 'Hoe kan ik mijn lavendel gezonder maken?'"
+
+    tips = []
+    if any(word in q for word in ["water", "gieten", "droog", "nat"]):
+        tips.append(
+            "Geef liever minder vaak maar dieper water. Controleer eerst de bovenste 2-3 cm aarde."
+        )
+    if any(word in q for word in ["mest", "voeding", "geven", "plantenvoeding"]):
+        tips.append(
+            "Gebruik in het groeiseizoen om de 2-4 weken organische mest. Vermijd overbemesting."
+        )
+    if any(word in q for word in ["lavendel", "kruid", "kruiden"]):
+        tips.append(
+            "Lavendel houdt van volle zon, droge grond en weinig mest. Snoei licht na de bloei."
+        )
+    if any(word in q for word in ["blad", "geel", "bruin", "ziek", "schimmel"]):
+        tips.append(
+            "Gele of bruine bladeren wijzen vaak op te veel water of slechte drainage. Verwijder zieke bladeren."
+        )
+    if any(word in q for word in ["insect", "bij", "vlinder", "biodiversiteit", "sdg"]):
+        tips.append(
+            "Plant inheemse soorten, voorzie bloemvariatie doorheen het jaar en gebruik geen pesticiden."
+        )
+    if any(word in q for word in ["bodem", "grond", "aarde"]):
+        tips.append(
+            "Voeg compost toe voor een gezonde bodemstructuur en beter waterbeheer."
+        )
+    if any(word in q for word in ["slak", "ongedierte", "plaag"]):
+        tips.append(
+            "Gebruik ecologische aanpak: handmatig verwijderen, barrières, en natuurlijke vijanden aantrekken."
+        )
+
+    if not tips:
+        return (
+            "Goede vraag. Begin met 3 basics: juiste hoeveelheid water, voldoende zonlicht, en compost in de bodem. "
+            "Als je je plantensoort en situatie deelt, geef ik een gerichter plan."
+        )
+
+    return "Hier is mijn advies:\n- " + "\n- ".join(tips)
 
 st.sidebar.markdown("## Thomas More x SDG")
 st.sidebar.markdown("### Project: SDG 15")
@@ -212,8 +292,8 @@ with top_right:
         unsafe_allow_html=True,
     )
 
-tab1, tab2, tab3 = st.tabs(
-    ["Biodiversiteitsscan", "Actieplanner", "Natuurdagboek"]
+tab1, tab2, tab3, tab4 = st.tabs(
+    ["Biodiversiteitsscan", "Actieplanner", "Natuurdagboek", "AI Plant Coach"]
 )
 
 with tab1:
@@ -362,6 +442,32 @@ with tab3:
         )
     else:
         st.info("Nog geen observaties.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with tab4:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("AI Plant Coach")
+    st.write(
+        "Stel je vraag over planten, bodem, water geven of biodiversiteit. "
+        "Je krijgt direct praktische tips in eenvoudige taal."
+    )
+    vraag = st.text_area(
+        "Jouw vraag",
+        placeholder="Bijv. Wat kan ik geven aan mijn planten zodat ze beter groeien?",
+        height=120,
+    )
+    if st.button("Vraag aan AI Coach", use_container_width=True):
+        antwoord = ai_plant_coach(vraag)
+        st.session_state.ai_history.append({"vraag": vraag, "antwoord": antwoord})
+        st.success("AI advies klaar.")
+        st.markdown(antwoord)
+
+    if st.session_state.ai_history:
+        st.markdown("**Recente vragen**")
+        for item in reversed(st.session_state.ai_history[-5:]):
+            st.write(f"**Vraag:** {item['vraag']}")
+            st.write(item["antwoord"])
+            st.markdown("---")
     st.markdown("</div>", unsafe_allow_html=True)
 
 left_col, right_col = st.columns([1.1, 0.9])
