@@ -177,6 +177,28 @@ st.markdown(
         [data-testid="stMarkdownContainer"] code {
             color: #7a0018;
         }
+
+        /* Chat-only styling (AI Plant Coach) */
+        /* Gebruik robuuste selectors (geen :has) voor consistente weergave. */
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            border-radius: 12px !important;
+        }
+        div[data-testid="stChatMessage"] {
+            background: #2f2f2f !important;
+            border: 1px solid #4f4f4f !important;
+            border-radius: 12px !important;
+            padding: 10px 12px !important;
+        }
+        div[data-testid="stChatMessage"] * {
+            color: #ffffff !important;
+        }
+        div[data-testid="stChatMessage"] a {
+            color: #ffd6df !important;
+        }
+        div[data-testid="stChatMessage"] code {
+            color: #ffd6df !important;
+            background: transparent !important;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -609,18 +631,20 @@ with tab4:
             converted.append({"role": "assistant", "content": item["antwoord"]})
         st.session_state.ai_history = converted
 
-    if not st.session_state.ai_history:
-        with st.chat_message("assistant"):
-            st.markdown(
-                "Hoi! Ik ben je AI Plant Coach. Stel een vraag zoals:\n"
-                "- Hoe verzorg ik lavendel?\n"
-                "- Waarom worden mijn bladeren geel?\n"
-                "- Wat kan ik aan mijn planten geven om beter te groeien?"
-            )
-    else:
-        for msg in st.session_state.ai_history:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
+    chat_history_box = st.container(height=420, border=True)
+    with chat_history_box:
+        if not st.session_state.ai_history:
+            with st.chat_message("assistant"):
+                st.markdown(
+                    "Hoi! Ik ben je AI Plant Coach. Stel een vraag zoals:\n"
+                    "- Hoe verzorg ik lavendel?\n"
+                    "- Waarom worden mijn bladeren geel?\n"
+                    "- Wat kan ik aan mijn planten geven om beter te groeien?"
+                )
+        else:
+            for msg in st.session_state.ai_history:
+                with st.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
 
     vraag = st.chat_input("Typ je vraag voor de AI Plant Coach...")
     if vraag:
@@ -639,17 +663,14 @@ with tab4:
             "homohaat",
         ]
         if any(term in q_lower for term in abusive_terms_input):
-            with st.chat_message("assistant"):
-                antwoord = (
-                    "Ik help je graag met planten, maar hou het respectvol. "
-                    "Stel je vraag opnieuw in nette taal."
-                )
-                st.markdown(antwoord)
-                st.session_state.ai_history.append(
-                    {"role": "assistant", "content": antwoord}
-                )
-            st.markdown("</div>", unsafe_allow_html=True)
-            st.stop()
+            antwoord = (
+                "Ik help je graag met planten, maar hou het respectvol. "
+                "Stel je vraag opnieuw in nette taal."
+            )
+            st.session_state.ai_history.append(
+                {"role": "assistant", "content": antwoord}
+            )
+            st.rerun()
 
         st.session_state.ai_history.append({"role": "user", "content": vraag})
         with st.chat_message("user"):
@@ -669,29 +690,28 @@ with tab4:
         force_live = mode == "Live AI via API key"
         use_live = (auto_mode and bool(live_key)) or (force_live and bool(live_key))
 
-        with st.chat_message("assistant"):
-            with st.spinner("AI denkt na..."):
-                if use_live:
-                    try:
-                        antwoord = ai_api_answer(
-                            vraag,
-                            live_key,
-                            st.session_state.ai_endpoint.strip(),
-                            st.session_state.ai_model.strip(),
-                        )
-                    except Exception:
-                        st.error(
-                            "Live AI kon niet antwoorden. Controleer endpoint/model/key in 'AI instellingen'. "
-                            "Tip: voor een gsk-key werkt Groq endpoint + model 'llama-3.1-8b-instant'."
-                        )
-                        antwoord = ai_plant_coach(vraag)
-                else:
+        with st.spinner("AI denkt na..."):
+            if use_live:
+                try:
+                    antwoord = ai_api_answer(
+                        vraag,
+                        live_key,
+                        st.session_state.ai_endpoint.strip(),
+                        st.session_state.ai_model.strip(),
+                    )
+                except Exception:
+                    st.error(
+                        "Live AI kon niet antwoorden. Controleer endpoint/model/key in 'AI instellingen'. "
+                        "Tip: voor een gsk-key werkt Groq endpoint + model 'llama-3.1-8b-instant'."
+                    )
                     antwoord = ai_plant_coach(vraag)
+            else:
+                antwoord = ai_plant_coach(vraag)
 
-            st.markdown(antwoord)
-            st.session_state.ai_history.append(
-                {"role": "assistant", "content": antwoord}
-            )
+        st.session_state.ai_history.append(
+            {"role": "assistant", "content": antwoord}
+        )
+        st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
 left_col, right_col = st.columns([1.1, 0.9])
