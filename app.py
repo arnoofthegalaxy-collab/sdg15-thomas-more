@@ -1,6 +1,8 @@
 from datetime import date
 import io
+import os
 import pandas as pd
+import requests
 import streamlit as st
 
 st.set_page_config(
@@ -188,6 +190,19 @@ if "obs_log" not in st.session_state:
     st.session_state.obs_log = []
 if "ai_history" not in st.session_state:
     st.session_state.ai_history = []
+if "ai_mode" not in st.session_state:
+    st.session_state.ai_mode = "Automatisch (gebruik live AI als key gevonden is)"
+if "ai_endpoint" not in st.session_state:
+    st.session_state.ai_endpoint = "https://openrouter.ai/api/v1/chat/completions"
+if "ai_model" not in st.session_state:
+    st.session_state.ai_model = "openai/gpt-4o-mini"
+
+
+def get_secret_key() -> str:
+    try:
+        return st.secrets.get("PLANT_AI_API_KEY", "")
+    except Exception:
+        return ""
 
 
 def ai_plant_coach(question: str) -> str:
@@ -207,11 +222,31 @@ def ai_plant_coach(question: str) -> str:
         "zuur",
         "explosief",
         "bom",
+        "self-harm",
+        "zelfmoord",
+    ]
+    abusive_terms = [
+        "kanker",
+        "kkr",
+        "tering",
+        "mongool",
+        "idioot",
+        "debiel",
+        "hoer",
+        "slet",
+        "nigger",
+        "racist",
+        "homohaat",
     ]
     if any(term in q for term in blocked_terms):
         return (
             "Daar kan ik niet mee helpen. Ik geef alleen veilig en natuurvriendelijk tuinadvies "
             "(water, bodem, compost, biodiversiteit, ecologische aanpak)."
+        )
+    if any(term in q for term in abusive_terms):
+        return (
+            "Laten we respectvol blijven. Ik help je graag met plantenvragen in nette taal. "
+            "Stel je vraag opnieuw, dan geef ik direct bruikbaar advies."
         )
 
     tips = []
@@ -246,8 +281,13 @@ def ai_plant_coach(question: str) -> str:
 
     if not tips:
         return (
-            "Goede vraag. Begin met 3 basics: juiste hoeveelheid water, voldoende zonlicht, en compost in de bodem. "
-            "Als je je plantensoort en situatie deelt, geef ik een gerichter plan."
+            "Ik kan je helpen met bijna alle plantenvragen: water, voeding, bodem, snoei, ziektes, plagen, stekken, "
+            "kamerplanten, moestuin en seizoenszorg.\n\n"
+            "Voor een sterk antwoord, geef dit mee:\n"
+            "- plantnaam\n"
+            "- waar de plant staat (binnen/buiten, zon/schaduw)\n"
+            "- welk probleem je ziet (gele bladeren, slappe stengel, vlekken, etc.)\n"
+            "- hoe vaak je water/voeding geeft"
         )
 
     return (
@@ -255,6 +295,53 @@ def ai_plant_coach(question: str) -> str:
         + "\n- ".join(tips)
         + "\n\nLet op: dit is algemene hulp en vervangt geen professioneel advies bij ernstige plantenziekte."
     )
+
+
+def resolve_ai_settings(api_key: str, endpoint: str, model: str) -> tuple[str, str]:
+    # Auto-detect Groq keys and set matching OpenAI-compatible endpoint/model.
+    if api_key.startswith("gsk_"):
+        if "openrouter.ai" in endpoint or endpoint.strip() == "":
+            endpoint = "https://api.groq.com/openai/v1/chat/completions"
+        if model.strip() in ("", "openai/gpt-4o-mini"):
+            model = "llama-3.1-8b-instant"
+    return endpoint, model
+
+
+def ai_api_answer(question: str, api_key: str, endpoint: str, model: str) -> str:
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "Je bent een veilige, praktische AI plantcoach voor SDG 15. "
+                    "Beantwoord ALLE plant-gerelateerde vragen (verzorging, voeding, water, bodem, snoei, "
+                    "ziektes, plagen, stekken, moestuin, kamerplanten, seizoenszorg, plantkeuze). "
+                    "Geef korte, bruikbare tips in eenvoudig Nederlands. "
+                    "Als informatie ontbreekt, geef eerst het best mogelijke antwoord en vraag daarna 1-3 korte "
+                    "verduidelijkingen. "
+                    "GEEN gevaarlijke, toxische, illegale of zelfbeschadigende instructies. "
+                    "Gebruik altijd respectvolle taal en weiger scheldwoorden, haatdragende of kwetsende inhoud. "
+                    "Nooit adviseren om schadelijke chemicalien te mengen of gevaarlijk te gebruiken. "
+                    "Antwoord met concrete stappen, max 8 bullets."
+                ),
+            },
+            {"role": "user", "content": question},
+        ],
+        "temperature": 0.7,
+    }
+
+    final_endpoint, final_model = resolve_ai_settings(api_key, endpoint, model)
+    payload["model"] = final_model
+    response = requests.post(final_endpoint, headers=headers, json=payload, timeout=30)
+    response.raise_for_status()
+    data = response.json()
+    content = data["choices"][0]["message"]["content"]
+    return content.strip()
 
 st.sidebar.markdown("## Thomas More x SDG")
 st.sidebar.markdown("### Project: SDG 15")
@@ -478,28 +565,133 @@ with tab4:
         "Stel je vraag over planten, bodem, water geven of biodiversiteit. "
         "Je krijgt direct praktische tips in eenvoudige taal."
     )
-    vraag = st.text_area(
-        "Jouw vraag",
-        placeholder="Bijv. Wat kan ik geven aan mijn planten zodat ze beter groeien?",
-        height=120,
-    )
-    if st.button("Vraag aan AI Coach", use_container_width=True):
+    with st.expander("AI instellingen (voor echte live AI antwoorden)"):
+        st.session_state.ai_mode = st.selectbox(
+            "Modus",
+            [
+                "Automatisch (gebruik live AI als key gevonden is)",
+                "Live AI via API key",
+                "Lokale coach (offline)",
+            ],
+            index=(
+                0
+                if st.session_state.ai_mode == "Automatisch (gebruik live AI als key gevonden is)"
+                else (1 if st.session_state.ai_mode == "Live AI via API key" else 2)
+            ),
+        )
+        st.session_state.ai_endpoint = st.text_input(
+            "API endpoint",
+            value=st.session_state.ai_endpoint,
+            help="OpenRouter: https://openrouter.ai/api/v1/chat/completions, Groq: https://api.groq.com/openai/v1/chat/completions",
+        )
+        st.session_state.ai_model = st.text_input(
+            "Model",
+            value=st.session_state.ai_model,
+            help="Voorbeeld: openai/gpt-4o-mini of een model dat je provider ondersteunt",
+        )
+        api_key_input = st.text_input(
+            "API key",
+            type="password",
+            help="Je key wordt enkel in deze sessie gebruikt.",
+        )
+        st.caption(
+            "Met key gebruikt de app live AI. Zonder key valt hij terug op de lokale coach."
+        )
+    if st.button("Wis chatgeschiedenis", use_container_width=True):
+        st.session_state.ai_history = []
+        st.success("Chatgeschiedenis gewist.")
+
+    # Backward-compatible conversie van oude structuur {"vraag","antwoord"} naar chatberichten.
+    if st.session_state.ai_history and "vraag" in st.session_state.ai_history[0]:
+        converted = []
+        for item in st.session_state.ai_history:
+            converted.append({"role": "user", "content": item["vraag"]})
+            converted.append({"role": "assistant", "content": item["antwoord"]})
+        st.session_state.ai_history = converted
+
+    if not st.session_state.ai_history:
+        with st.chat_message("assistant"):
+            st.markdown(
+                "Hoi! Ik ben je AI Plant Coach. Stel een vraag zoals:\n"
+                "- Hoe verzorg ik lavendel?\n"
+                "- Waarom worden mijn bladeren geel?\n"
+                "- Wat kan ik aan mijn planten geven om beter te groeien?"
+            )
+    else:
+        for msg in st.session_state.ai_history:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+
+    vraag = st.chat_input("Typ je vraag voor de AI Plant Coach...")
+    if vraag:
+        q_lower = vraag.lower().strip()
+        abusive_terms_input = [
+            "kanker",
+            "kkr",
+            "tering",
+            "mongool",
+            "idioot",
+            "debiel",
+            "hoer",
+            "slet",
+            "nigger",
+            "racist",
+            "homohaat",
+        ]
+        if any(term in q_lower for term in abusive_terms_input):
+            with st.chat_message("assistant"):
+                antwoord = (
+                    "Ik help je graag met planten, maar hou het respectvol. "
+                    "Stel je vraag opnieuw in nette taal."
+                )
+                st.markdown(antwoord)
+                st.session_state.ai_history.append(
+                    {"role": "assistant", "content": antwoord}
+                )
+            st.markdown("</div>", unsafe_allow_html=True)
+            st.stop()
+
+        st.session_state.ai_history.append({"role": "user", "content": vraag})
+        with st.chat_message("user"):
+            st.markdown(vraag)
+
         if any(ch.isdigit() for ch in vraag) and "ml" in vraag.lower():
             st.warning(
                 "Tip: vermeld liever plantnaam + probleem dan exacte chemische dosissen. "
                 "De coach geeft enkel veilige, algemene richtlijnen."
             )
-        antwoord = ai_plant_coach(vraag)
-        st.session_state.ai_history.append({"vraag": vraag, "antwoord": antwoord})
-        st.success("AI advies klaar.")
-        st.markdown(antwoord)
 
-    if st.session_state.ai_history:
-        st.markdown("**Recente vragen**")
-        for item in reversed(st.session_state.ai_history[-5:]):
-            st.write(f"**Vraag:** {item['vraag']}")
-            st.write(item["antwoord"])
-            st.markdown("---")
+        key_from_env = os.getenv("PLANT_AI_API_KEY", "")
+        key_from_secrets = get_secret_key()
+        live_key = api_key_input.strip() or key_from_env or key_from_secrets
+        mode = st.session_state.ai_mode
+        auto_mode = mode == "Automatisch (gebruik live AI als key gevonden is)"
+        force_live = mode == "Live AI via API key"
+        use_live = (auto_mode and bool(live_key)) or (force_live and bool(live_key))
+
+        with st.chat_message("assistant"):
+            with st.spinner("AI denkt na..."):
+                if use_live:
+                    try:
+                        antwoord = ai_api_answer(
+                            vraag,
+                            live_key,
+                            st.session_state.ai_endpoint.strip(),
+                            st.session_state.ai_model.strip(),
+                        )
+                    except Exception:
+                        st.error(
+                            "Live AI kon niet antwoorden. Controleer endpoint/model/key in 'AI instellingen'. "
+                            "Tip: voor een gsk-key werkt Groq endpoint + model 'llama-3.1-8b-instant'."
+                        )
+                        antwoord = ai_plant_coach(vraag)
+                else:
+                    antwoord = ai_plant_coach(vraag)
+
+            st.markdown(antwoord)
+            st.session_state.ai_history.append(
+                {"role": "assistant", "content": antwoord}
+            )
     st.markdown("</div>", unsafe_allow_html=True)
 
 left_col, right_col = st.columns([1.1, 0.9])
