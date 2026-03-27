@@ -194,6 +194,25 @@ def ai_plant_coach(question: str) -> str:
     q = question.lower().strip()
     if not q:
         return "Stel een vraag, bijvoorbeeld: 'Hoe kan ik mijn lavendel gezonder maken?'"
+    if len(q) < 5:
+        return "Je vraag is te kort. Typ iets specifieker, bv. 'Mijn basilicum heeft gele blaadjes, wat doe ik?'"
+    if len(q) > 400:
+        return "Je vraag is erg lang. Maak ze korter (max. 400 tekens) voor een beter antwoord."
+
+    blocked_terms = [
+        "gif",
+        "vergif",
+        "bleekmiddel",
+        "benzine",
+        "zuur",
+        "explosief",
+        "bom",
+    ]
+    if any(term in q for term in blocked_terms):
+        return (
+            "Daar kan ik niet mee helpen. Ik geef alleen veilig en natuurvriendelijk tuinadvies "
+            "(water, bodem, compost, biodiversiteit, ecologische aanpak)."
+        )
 
     tips = []
     if any(word in q for word in ["water", "gieten", "droog", "nat"]):
@@ -231,7 +250,11 @@ def ai_plant_coach(question: str) -> str:
             "Als je je plantensoort en situatie deelt, geef ik een gerichter plan."
         )
 
-    return "Hier is mijn advies:\n- " + "\n- ".join(tips)
+    return (
+        "Hier is mijn advies:\n- "
+        + "\n- ".join(tips)
+        + "\n\nLet op: dit is algemene hulp en vervangt geen professioneel advies bij ernstige plantenziekte."
+    )
 
 st.sidebar.markdown("## Thomas More x SDG")
 st.sidebar.markdown("### Project: SDG 15")
@@ -447,6 +470,10 @@ with tab3:
 with tab4:
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("AI Plant Coach")
+    st.info(
+        "Hoe werkt de AI coach? 1) Typ je plantenvraag. 2) Klik op de knop. "
+        "3) Je krijgt direct eenvoudige, veilige en praktische tips."
+    )
     st.write(
         "Stel je vraag over planten, bodem, water geven of biodiversiteit. "
         "Je krijgt direct praktische tips in eenvoudige taal."
@@ -457,6 +484,11 @@ with tab4:
         height=120,
     )
     if st.button("Vraag aan AI Coach", use_container_width=True):
+        if any(ch.isdigit() for ch in vraag) and "ml" in vraag.lower():
+            st.warning(
+                "Tip: vermeld liever plantnaam + probleem dan exacte chemische dosissen. "
+                "De coach geeft enkel veilige, algemene richtlijnen."
+            )
         antwoord = ai_plant_coach(vraag)
         st.session_state.ai_history.append({"vraag": vraag, "antwoord": antwoord})
         st.success("AI advies klaar.")
