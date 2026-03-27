@@ -120,6 +120,24 @@ st.markdown(
             color: #7a0018 !important;
             fill: #7a0018 !important;
         }
+        /* Fix dropdown menu readability (opened options list) */
+        [role="listbox"] {
+            background: #fffafb !important;
+            border: 1px solid #ffb8c6 !important;
+        }
+        [role="option"] {
+            background: #fffafb !important;
+            color: #1f1f1f !important;
+        }
+        [role="option"][aria-selected="true"] {
+            background: #ffe5ea !important;
+            color: #7a0018 !important;
+            font-weight: 600;
+        }
+        [role="option"]:hover {
+            background: #ffd6df !important;
+            color: #1f1f1f !important;
+        }
         [data-testid="stMarkdownContainer"] code {
             color: #7a0018;
         }
