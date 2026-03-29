@@ -851,24 +851,24 @@ def ai_api_answer(question: str, api_key: str, endpoint: str, model: str) -> str
 
 
 # ── Sidebar ──────────────────────────────────────────────────────────────────
-st.sidebar.markdown("## Thomas More x SDG")
-st.sidebar.markdown("### Project: SDG 15")
-st.sidebar.success("Thema actief: Life on Land")
-st.sidebar.markdown("---")
-st.sidebar.markdown(
-    """
-    **Doel van de app**
-    - Bewustwording rond biodiversiteit
-    - Lokale acties zichtbaar maken
-    - Jongeren motiveren om mee te doen
-    """
-)
+#st.sidebar.markdown("## Thomas More x SDG")
+#st.sidebar.markdown("### Project: SDG 15")
+# st.sidebar.success("Thema actief: Life on Land")
+# st.sidebar.markdown("---")
+# st.sidebar.markdown(
+#     """
+#     **Doel van de app**
+#     - Bewustwording rond biodiversiteit
+#     - Lokale acties zichtbaar maken
+#     - Jongeren motiveren om mee te doen
+#     """
+# )
 
 # ── Hero ─────────────────────────────────────────────────────────────────────
 st.markdown(
     """
     <div class="hero">
-        <span class="tm-badge">THOMAS MORE THEME</span>
+        <span class="tm-badge">THOMAS MORE</span>
         <h1 style="margin:0 0 0.35rem 0;">SDG 15: Life on Land</h1>
         <p style="margin:0; font-size:1.05rem; color:#ffe5ea;">
             Bescherm, herstel en bevorder het duurzaam gebruik van ecosystemen op land.
@@ -1066,7 +1066,9 @@ with tab4:
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("🌿 Arno — AI Plant Coach")
     st.info(
-        "Hoe werkt Arno? 1) Typ je plantenvraag. 2) Druk op Enter. "
+        "Hoe werkt Arno?\n" \
+        "1) Typ je plantenvraag.\n" \
+        "2) Druk op Enter.\n"
         "3) Arno geeft direct praktisch advies over jouw plant, plaag of probleem."
     )
     st.write(
@@ -1224,13 +1226,13 @@ with right_col:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ── Footer ────────────────────────────────────────────────────────────────────
-st.markdown("---")
-st.markdown("### Thomas More Design Notes")
-c1, c2, c3 = st.columns(3)
-c1.info("Kleuren: roodtinten in Thomas More stijl")
-c2.info("Heldere kaarten en afgeronde UI")
-c3.info("Interactieve elementen voor showcase")
+# st.markdown("---")
+# st.markdown("### Thomas More Design Notes")
+# c1, c2, c3 = st.columns(3)
+# c1.info("Kleuren: roodtinten in Thomas More stijl")
+# c2.info("Heldere kaarten en afgeronde UI")
+# c3.info("Interactieve elementen voor showcase")
 
-st.caption(
-    "Gemaakt voor de projectfase 'Van Ontwerp naar App' met Streamlit en een Thomas More look & feel."
-)
+# st.caption(
+#     "Gemaakt voor de projectfase 'Van Ontwerp naar App' met Streamlit en een Thomas More look & feel."
+# )
